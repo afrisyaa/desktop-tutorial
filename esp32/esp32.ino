@@ -17,13 +17,13 @@ int lastState;
 
 // Variables
 volatile long encoder_count = 0;  // Encoder pulse count
-float target_rpm = 200.0;           // Target RPM
+float target_rpm = 100.0;           // Target RPM
 float current_rpm = 0.0;          // Measured RPM
 float motor_pwm = 0.0;            // PID output
 
 // PID variables
 double pid_input, pid_output, pid_setpoint;
-PID pid(&pid_input, &pid_output, &pid_setpoint, 1.0, 0.1, 0.0, DIRECT);  // Tune Kp, Ki, Kd
+PID pid(&pid_input, &pid_output, &pid_setpoint, 0.1, 0.0, 0.0, DIRECT);  // Tune Kp, Ki, Kd
 
 // Encoder ISR
 void IRAM_ATTR encoder_isr() {
@@ -99,7 +99,8 @@ void loop() {
     pid_input = current_rpm;
     pid_setpoint = target_rpm;
     pid.Compute();
-    set_motor_speed(pid_output);  // Update motor speed and direction
+    motor_pwm+=pid_output;
+    set_motor_speed(motor_pwm);  // Update motor speed and direction
 
     //Print debug information
     Serial.print("TargetRPM:");
