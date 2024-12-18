@@ -1,11 +1,14 @@
-#include <Arduino.h>
 #include <PID_v1.h>
+#include <CAN.h>
 
 // Pins
 #define ENCODER_PIN_A 19
 #define ENCODER_PIN_B 21
 #define MOTOR_PWM_PIN 22
 #define MOTOR_DIR_PIN 23
+
+#define TX_GPIO_NUM 5
+#define RX_GPIO_NUM 4
 
 // Constants
 const float reduction_ratio = 13.7;  // Gear reduction
@@ -72,6 +75,15 @@ void setup() {
   // Initialize Serial
   Serial.begin(115200);
 
+  Serial.println("CAN Receiver");
+
+  CAN.setPins(RX_GPIO_NUM, TX_GPIO_NUM);
+
+  if(!CAN.begin(500E3)){
+    Serial.println("Starting CAN failed!");
+    while(1);
+  }
+
   // Initialize encoder pins
   pinMode(ENCODER_PIN_A, INPUT_PULLUP);
   pinMode(ENCODER_PIN_B, INPUT_PULLUP);
@@ -90,6 +102,38 @@ void setup() {
 // Main loop
 void loop() {
   static unsigned long last_pid_time = 0;
+
+  int packetSize = CAN.parsePacket();
+
+  if(packetSize){
+    Serial.print("Recieved");
+
+    if(CAN.packetExtended()){
+      Serial.print("extended");
+    }
+
+    if(CAN.packetRtr()){
+      Serial.print("RTR");
+    }
+
+    Serial.print("packet with id 0x");
+    Serial.print(CAN.packetId(), HEX);
+
+    if(CAN.packetRtr()){
+      Serial.print(" and request length ");
+      Serial.println(CAN.packetDlc());
+    }else{
+      Serial.print(" and length ");
+      Serial.println(packetSize);
+
+      while(CAN.available()){
+        Serial.print((char) CAN.read());
+      }
+      Serial.println();
+    }
+
+    Serial.println();
+  }
 
   // Calculate RPM every 100ms
   if (millis() - last_pid_time >= 100) {
